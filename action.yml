@@ -1,0 +1,85 @@
+# kurajs/pages — action.yml  (composite action, published as `uses: kurajs/pages@v1`)
+name: "Kura Pages"
+description: "Build a Kura docs site from kura.toml + docs/, and deploy it to GitHub Pages."
+author: "kurajs"
+branding:
+  icon: "book-open"
+  color: "purple"
+
+inputs:
+  config:
+    description: "Path to kura.toml."
+    default: "kura.toml"
+  docs:
+    description: "Docs source directory to render."
+    default: "docs"
+  homepage:
+    description: "Homepage source: 'auto' (index.md if present, else README.md), 'readme', 'index', or 'landing' (let Kura generate one)."
+    default: "auto"
+  embed:
+    description: "Build the semantic (vector) search index too. 'false' keeps the fast, model-free BM25 client search."
+    default: "false"
+  deploy:
+    description: "Deploy the built site to the gh-pages branch. Set 'false' to only build (see the `dir` output)."
+    default: "true"
+  cli-version:
+    description: "Version range for @kurajs/cli."
+    default: ">=0.0.26 <0.1.0"
+  docs-version:
+    description: "Version range for @kurajs/docs."
+    default: ">=0.0.45 <0.1.0"
+  bun-version:
+    description: "Bun version."
+    default: "1.3.14"
+
+outputs:
+  dir:
+    description: "Path to the built static site (for a custom deploy step)."
+    value: ${{ steps.build.outputs.dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
+
+    - id: build
+      shell: bash
+      env:
+        REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        SITE="$RUNNER_TEMP/kura-site"
+        rm -rf "$SITE" && mkdir -p "$SITE/content/docs"
+        # Docs become Kura's local content, so the repo root is never touched (works for app repos too).
+        cp -R "${{ inputs.docs }}"/. "$SITE/content/docs/"
+        # Homepage: prefer an existing index.md; otherwise promote README.md (unless the user forced a mode).
+        HP="${{ inputs.homepage }}"
+        if [ "$HP" != "index" ] && [ "$HP" != "landing" ] && [ ! -f "$SITE/content/docs/index.md" ] && [ -f "$SITE/content/docs/README.md" ]; then
+          mv "$SITE/content/docs/README.md" "$SITE/content/docs/index.md"
+        fi
+        # Generic repo-relative link fix: docs that link to the project README at the repo root.
+        [ -f "$SITE/content/docs/index.md" ] && sed -i -E "s|\]\(\.\./README\.md\)|](https://github.com/${REPO}#readme)|g" "$SITE/content/docs/index.md"
+        cp "${{ inputs.config }}" "$SITE/"
+        EMBED_FLAG="--no-embed"; [ "${{ inputs.embed }}" = "true" ] && EMBED_FLAG=""
+        cat > "$SITE/package.json" <<JSON
+        {
+          "name": "kura-docs-ephemeral", "private": true, "type": "module",
+          "scripts": { "build": "kura build $EMBED_FLAG" },
+          "dependencies": { "@kurajs/docs": "${{ inputs.docs-version }}", "react": "^19.2.0", "react-dom": "^19.2.0" },
+          "devDependencies": {
+            "@kurajs/cli": "${{ inputs.cli-version }}", "@tailwindcss/node": "^4.3.1", "@tailwindcss/oxide": "^4.3.1",
+            "@tailwindcss/typography": "^0.5.20", "@types/react": "^19.2.0", "tailwindcss": "^4.3.1", "typescript": "^5.9.0"
+          }
+        }
+        JSON
+        cd "$SITE" && bun install && bun run build
+        echo "dir=$SITE/dist/static" >> "$GITHUB_OUTPUT"
+
+    - if: ${{ inputs.deploy == 'true' }}
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ github.token }}
+        publish_dir: ${{ steps.build.outputs.dir }}
+        commit_message: "docs: publish Kura site (${{ github.sha }})"
