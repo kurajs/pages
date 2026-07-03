@@ -16,6 +16,9 @@ inputs:
   homepage:
     description: "Homepage source: 'auto' (index.md if present, else README.md), 'readme', 'index', or 'landing' (let Kura generate one)."
     default: "auto"
+  base-path:
+    description: "Deploy base path. 'auto' derives it (repo-level custom domain or owner.github.io page -> ''; otherwise a project page -> '/<repo>'), or set an explicit value like '/docs'."
+    default: "auto"
   embed:
     description: "Build the semantic (vector) search index too. 'false' keeps the fast, model-free BM25 client search."
     default: "false"
@@ -48,15 +51,22 @@ runs:
       shell: bash
       env:
         REPO: ${{ github.repository }}
+        GH_TOKEN: ${{ github.token }}
+        BASE_PATH_INPUT: ${{ inputs.base-path }}
+        HOMEPAGE: ${{ inputs.homepage }}
+        EMBED: ${{ inputs.embed }}
+        DOCS_DIR: ${{ inputs.docs }}
+        CONFIG: ${{ inputs.config }}
+        DOCS_VERSION: ${{ inputs.docs-version }}
+        CLI_VERSION: ${{ inputs.cli-version }}
       run: |
         set -euo pipefail
         SITE="$RUNNER_TEMP/kura-site"
         rm -rf "$SITE" && mkdir -p "$SITE/content/docs"
         # Docs become Kura's local content, so the repo root is never touched (works for app repos too).
-        cp -R "${{ inputs.docs }}"/. "$SITE/content/docs/"
-        # Homepage: prefer an existing index.md; otherwise promote README.md (unless the user forced a mode).
-        HP="${{ inputs.homepage }}"
-        if [ "$HP" != "index" ] && [ "$HP" != "landing" ] && [ ! -f "$SITE/content/docs/index.md" ] && [ -f "$SITE/content/docs/README.md" ]; then
+        cp -R "$DOCS_DIR"/. "$SITE/content/docs/"
+        # Homepage: prefer an existing index.md; otherwise promote README.md (unless the caller forced a mode).
+        if [ "$HOMEPAGE" != "index" ] && [ "$HOMEPAGE" != "landing" ] && [ ! -f "$SITE/content/docs/index.md" ] && [ -f "$SITE/content/docs/README.md" ]; then
           mv "$SITE/content/docs/README.md" "$SITE/content/docs/index.md"
         fi
         # Fix repo-relative links that only resolve from a TOP-LEVEL doc, where "../" means the repo
@@ -66,20 +76,58 @@ runs:
           [ -f "$f" ] || continue
           sed -i -E "s|\]\(\.\./README\.md\)|](https://github.com/${REPO}#readme)|g; s|\]\(\.\./([A-Za-z0-9_.-]+)\.md\)|](https://github.com/${REPO}/blob/HEAD/\1.md)|g" "$f"
         done
-        cp "${{ inputs.config }}" "$SITE/"
-        EMBED_FLAG="--no-embed"; [ "${{ inputs.embed }}" = "true" ] && EMBED_FLAG=""
+        cp "$CONFIG" "$SITE/kura.toml"
+        # Detect THIS repo's own custom domain: a repo-level CNAME means it is served at the domain
+        # root (base_path ""), whereas an owner-level domain leaves project pages under "/<repo>".
+        git fetch origin gh-pages --depth 1 2>/dev/null || true
+        CNAME="$(git show FETCH_HEAD:CNAME 2>/dev/null | head -1 | tr -d '[:space:]' || true)"
+        [ -z "$CNAME" ] && CNAME="$(gh api "repos/${REPO}/pages" --jq '.cname // empty' 2>/dev/null || true)"
+        # Derive the deploy base path unless the caller passed one explicitly.
+        BP="$BASE_PATH_INPUT"
+        if [ "$BP" = "auto" ]; then
+          NAME="${REPO#*/}"; OWNER="${REPO%%/*}"
+          BP="/$NAME"
+          [ "$(printf '%s' "$NAME" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]').github.io" ] && BP=""
+          [ -n "$CNAME" ] && BP=""
+        fi
+        echo "kura-pages: deploy base_path='$BP' (repo custom domain: ${CNAME:-none})"
+        # Write the derived base_path into the copied kura.toml's [deploy] section.
+        KURA_BP="$BP" python3 - "$SITE/kura.toml" <<'PY'
+        import os, re, sys, pathlib
+        bp = os.environ["KURA_BP"]
+        p = pathlib.Path(sys.argv[1]); lines = p.read_text().splitlines()
+        out, in_deploy, done = [], False, False
+        for line in lines:
+            st = line.strip()
+            if st.startswith("[") and st.endswith("]"):
+                if in_deploy and not done:
+                    out.append(f'base_path = "{bp}"'); done = True
+                in_deploy = (st == "[deploy]")
+                out.append(line); continue
+            if in_deploy and re.match(r"\s*base_path\s*=", line):
+                out.append(f'base_path = "{bp}"'); done = True; continue
+            out.append(line)
+        if in_deploy and not done:
+            out.append(f'base_path = "{bp}"'); done = True
+        if not done:
+            out += ["", "[deploy]", 'target = "github-pages"', f'base_path = "{bp}"']
+        p.write_text("\n".join(out) + "\n")
+        PY
+        EMBED_FLAG="--no-embed"; [ "$EMBED" = "true" ] && EMBED_FLAG=""
         cat > "$SITE/package.json" <<JSON
         {
           "name": "kura-docs-ephemeral", "private": true, "type": "module",
           "scripts": { "build": "kura build $EMBED_FLAG" },
-          "dependencies": { "@kurajs/docs": "${{ inputs.docs-version }}", "react": "^19.2.0", "react-dom": "^19.2.0" },
+          "dependencies": { "@kurajs/docs": "$DOCS_VERSION", "react": "^19.2.0", "react-dom": "^19.2.0" },
           "devDependencies": {
-            "@kurajs/cli": "${{ inputs.cli-version }}", "@tailwindcss/node": "^4.3.1", "@tailwindcss/oxide": "^4.3.1",
+            "@kurajs/cli": "$CLI_VERSION", "@tailwindcss/node": "^4.3.1", "@tailwindcss/oxide": "^4.3.1",
             "@tailwindcss/typography": "^0.5.20", "@types/react": "^19.2.0", "tailwindcss": "^4.3.1", "typescript": "^5.9.0"
           }
         }
         JSON
         cd "$SITE" && bun install && bun run build
+        # Preserve the custom-domain CNAME in the published output (survives peaceiris keep_files:false).
+        if [ -n "$CNAME" ]; then printf '%s\n' "$CNAME" > "$SITE/dist/static/CNAME"; echo "kura-pages: CNAME preserved ($CNAME)"; fi
         echo "dir=$SITE/dist/static" >> "$GITHUB_OUTPUT"
 
     - if: ${{ inputs.deploy == 'true' }}

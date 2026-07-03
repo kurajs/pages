@@ -35,6 +35,7 @@ Add a `kura.toml` at the repo root (site name, nav, deploy subpath). The action 
 | `config` | `kura.toml` | Path to the Kura config. |
 | `docs` | `docs` | Docs source directory to render. |
 | `homepage` | `auto` | `auto` (index.md if present, else README.md), `readme`, `index`, or `landing`. |
+| `base-path` | `auto` | Auto-detected: a repo-level custom domain or `owner.github.io` page → `""`; a project page → `/<repo>`. Override with an explicit value if needed. |
 | `embed` | `false` | Build the semantic (vector) index too; `false` keeps the fast, model-free BM25 client search. |
 | `deploy` | `true` | Deploy to `gh-pages`; set `false` to only build (see the `dir` output). |
 | `cli-version` / `docs-version` | latest 0.0.x | Pin `@kurajs/cli` / `@kurajs/docs`. |
@@ -45,3 +46,7 @@ Add a `kura.toml` at the repo root (site name, nav, deploy subpath). The action 
 - Builds in an isolated dir, so your repo root is never touched (works even if the repo is itself an app).
 - Uses `docs/README.md` (or `docs/index.md`) as the homepage.
 - Ships client-side search plus `.md`, `.json`, `/llms.txt`, and MCP surfaces for AI agents.
+
+## Custom domains
+
+You don't configure `base_path` by hand. The action detects how the site is served and sets it: a repo-level custom domain (a `CNAME` on `gh-pages`) or an `owner.github.io` page is served at the root (`""`); a normal project page is served under `/<repo>`. It also carries an existing `CNAME` into every deploy, so a custom domain survives redeploys.
