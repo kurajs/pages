@@ -1,7 +1,7 @@
 # Kura Pages
 
 [![CI](https://github.com/kurajs/pages/actions/workflows/ci.yml/badge.svg)](https://github.com/kurajs/pages/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/kurajs/pages)](https://github.com/kurajs/pages/releases)
+[![Release](https://img.shields.io/github/v/release/kurajs/pages?sort=semver)](https://github.com/kurajs/pages/releases)
 [![Marketplace](https://img.shields.io/badge/Marketplace-Kura%20Pages-8957e5?logo=github&logoColor=white)](https://github.com/marketplace/actions/kura-pages)
 [![License: MIT](https://img.shields.io/github/license/kurajs/pages)](LICENSE)
 
