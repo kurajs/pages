@@ -1,0 +1,71 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: actionlint (workflow files)
+        uses: raven-actions/actionlint@v2
+
+      - name: yamllint (action.yml + workflows)
+        run: pipx run yamllint -c .yamllint action.yml .github/
+
+      - name: shellcheck (scripts/*.sh)
+        run: shellcheck scripts/*.sh
+
+      - name: ruff (scripts/*.py)
+        run: pipx run ruff check scripts/
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Build the fixture with an explicit project-page base_path and assert the site + prefix.
+      - name: Build fixture (base-path=/foo)
+        id: foo
+        uses: ./
+        with:
+          config: test/fixture/kura.toml
+          docs: test/fixture/docs
+          base-path: /foo
+          deploy: false
+
+      - name: Assert /foo build
+        env:
+          DIR: ${{ steps.foo.outputs.dir }}
+        run: |
+          test -f "$DIR/index.html"
+          test -f "$DIR/guide/index.html"
+          test -n "$(find "$DIR" -path '*/nested/index.html')" # subfolder doc rendered
+          grep -q 'href="/foo/_june/' "$DIR/index.html"
+          grep -q 'href="/foo/guide"' "$DIR/index.html"
+          echo "ok: fixture rendered, base_path=/foo applied to assets + doc links"
+
+      # Re-build with a root base_path (the custom-domain / owner-page case) and assert root prefixes.
+      - name: Build fixture (base-path='')
+        id: root
+        uses: ./
+        with:
+          config: test/fixture/kura.toml
+          docs: test/fixture/docs
+          base-path: ""
+          deploy: false
+
+      - name: Assert root build
+        env:
+          DIR: ${{ steps.root.outputs.dir }}
+        run: |
+          grep -q 'href="/_june/' "$DIR/index.html"
+          grep -q 'href="/guide"' "$DIR/index.html"
+          if grep -q 'href="/foo/' "$DIR/index.html"; then echo "stale /foo prefix leaked"; exit 1; fi
+          echo "ok: base_path='' applied at the root"

@@ -1,0 +1,18 @@
+# Minimal fixture used by the self-test in .github/workflows/ci.yml. base_path here is a placeholder;
+# the action overrides [deploy].base_path from the base-path input (or auto-derivation).
+markdown  = "commonmark"
+base_path = ""
+[site]
+name        = "Fixture"
+description = "CI fixture for the kurajs/pages action."
+[deploy]
+target    = "github-pages"
+base_path = "/placeholder"
+[content]
+sources = []
+[[nav.tabs]]
+title  = "Docs"
+groups = ["docs"]
+[nav.groups.docs]
+title = "Docs"
+pages = ["guide", "sub/nested"]
