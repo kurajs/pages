@@ -1,5 +1,9 @@
 # Kura Pages
 
+[![CI](https://github.com/kurajs/pages/actions/workflows/ci.yml/badge.svg)](https://github.com/kurajs/pages/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/kurajs/pages)](https://github.com/kurajs/pages/releases)
+[![License: MIT](https://img.shields.io/github/license/kurajs/pages)](LICENSE)
+
 A GitHub Action that turns your repo's `docs/` Markdown into a searchable, agent-native docs
 site with [Kura](https://kura.build) and deploys it to GitHub Pages. Add one `kura.toml`, one
 workflow, and your docs get a real site at `https://<owner>.github.io/<repo>/`.
