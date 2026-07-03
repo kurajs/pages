@@ -50,3 +50,12 @@ Add a `kura.toml` at the repo root (site name, nav, deploy subpath). The action 
 ## Custom domains
 
 You don't configure `base_path` by hand. The action detects how the site is served and sets it: a repo-level custom domain (a `CNAME` on `gh-pages`) or an `owner.github.io` page is served at the root (`""`); a normal project page is served under `/<repo>`. It also carries an existing `CNAME` into every deploy, so a custom domain survives redeploys.
+
+## Development
+
+CI (`.github/workflows/ci.yml`) runs on every push and PR:
+
+- **lint** — [actionlint](https://github.com/rhysd/actionlint) (workflows), yamllint (`action.yml` + workflows), shellcheck (`scripts/*.sh`), and ruff (`scripts/*.py`).
+- **test** — a self-test that builds `test/fixture/` through the action (`uses: ./`) and asserts the rendered pages plus the `base_path` prefix for both a project-page (`/foo`) and a root (`""`) deploy.
+
+The build logic lives in `scripts/build.sh` + `scripts/set_base_path.py` (extracted from `action.yml` so it can be shellcheck'd and read cleanly).
