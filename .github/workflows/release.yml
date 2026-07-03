@@ -1,0 +1,39 @@
+name: release
+
+# When a (non-prerelease) release is published, move its major-version tag (e.g. v1) to the release
+# commit, so consumers pinned to `@v1` automatically get the latest v1.x. This is GitHub's recommended
+# major-tag convention (actions/toolkit action-versioning). Prereleases (e.g. v2-beta) are skipped.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  move-major-tag:
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Move the major-version tag to this release
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          re='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          if [[ ! "$TAG" =~ $re ]]; then
+            echo "Tag '$TAG' is not vMAJOR.MINOR.PATCH; nothing to do."
+            exit 0
+          fi
+          major="${TAG%%.*}" # v1.2.3 -> v1
+          echo "Moving $major -> $TAG ($SHA)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$major" "$SHA"
+          git push origin "refs/tags/$major" --force
