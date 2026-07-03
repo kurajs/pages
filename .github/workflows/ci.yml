@@ -49,7 +49,9 @@ jobs:
           test -n "$(find "$DIR" -path '*/nested/index.html')" # subfolder doc rendered
           grep -q 'href="/foo/_june/' "$DIR/index.html"
           grep -q 'href="/foo/guide"' "$DIR/index.html"
-          echo "ok: fixture rendered, base_path=/foo applied to assets + doc links"
+          grep -q 'href="https://github.com/kurajs/pages#readme"' "$DIR/index.html"                    # ../README.md
+          grep -q 'href="https://github.com/kurajs/pages/blob/HEAD/config/app.toml"' "$DIR/index.html" # ../subpath -> blob
+          echo "ok: fixture rendered, base_path=/foo applied, repo-relative links rewritten"
 
       # Re-build with a root base_path (the custom-domain / owner-page case) and assert root prefixes.
       - name: Build fixture (base-path='')

@@ -17,12 +17,13 @@ if [ "$HOMEPAGE" != "index" ] && [ "$HOMEPAGE" != "landing" ] &&
   mv "$SITE/content/docs/README.md" "$SITE/content/docs/index.md"
 fi
 
-# Fix repo-relative links that only resolve from a TOP-LEVEL doc, where "../" means the repo root
-# (README -> the repo readme, other files -> their GitHub blob). Subfolder docs use "../" for SIBLING
-# docs, which Kura resolves, so leave those alone.
+# Fix repo-relative links that only resolve from a TOP-LEVEL doc, where "../" means the repo root:
+# the project README -> its rendered readme, and any other repo path (nested dirs, or non-.md files
+# like source/config) -> its GitHub blob. Subfolder docs use "../" for SIBLING docs, which Kura
+# resolves, so those are left alone (only top-level docs/*.md are rewritten here).
 for f in "$SITE"/content/docs/*.md; do
   [ -f "$f" ] || continue
-  sed -i -E "s|\]\(\.\./README\.md\)|](https://github.com/${REPO}#readme)|g; s|\]\(\.\./([A-Za-z0-9_.-]+)\.md\)|](https://github.com/${REPO}/blob/HEAD/\1.md)|g" "$f"
+  sed -i -E "s|\]\(\.\./README\.md\)|](https://github.com/${REPO}#readme)|g; s|\]\(\.\./([A-Za-z0-9_./-]+)\)|](https://github.com/${REPO}/blob/HEAD/\1)|g" "$f"
 done
 
 cp "$CONFIG" "$SITE/kura.toml"
