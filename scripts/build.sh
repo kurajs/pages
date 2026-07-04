@@ -17,14 +17,10 @@ if [ "$HOMEPAGE" != "index" ] && [ "$HOMEPAGE" != "landing" ] &&
   mv "$SITE/content/docs/README.md" "$SITE/content/docs/index.md"
 fi
 
-# Fix repo-relative links that only resolve from a TOP-LEVEL doc, where "../" means the repo root:
-# the project README -> its rendered readme, and any other repo path (nested dirs, or non-.md files
-# like source/config) -> its GitHub blob. Subfolder docs use "../" for SIBLING docs, which Kura
-# resolves, so those are left alone (only top-level docs/*.md are rewritten here).
-for f in "$SITE"/content/docs/*.md; do
-  [ -f "$f" ] || continue
-  sed -i -E "s|\]\(\.\./README\.md\)|](https://github.com/${REPO}#readme)|g; s|\]\(\.\./([A-Za-z0-9_./-]+)\)|](https://github.com/${REPO}/blob/HEAD/\1)|g" "$f"
-done
+# Repo-relative links (../README.md, ../src/x.rs, pruned docs) are handled NATIVELY by kura
+# >=0.0.27: each page resolves links from its own source path, against a git-tracked oracle,
+# with exact-sha blob URLs (KURA_REPO_ROOT/KURA_SOURCE_MAP above). The old sed pre-fix retired
+# after live verification; native covers anchors, subfolders, and non-.md targets it never could.
 
 cp "$CONFIG" "$SITE/kura.toml"
 

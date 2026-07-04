@@ -49,8 +49,8 @@ jobs:
           test -n "$(find "$DIR" -path '*/nested/index.html')" # subfolder doc rendered
           grep -q 'href="/foo/_june/' "$DIR/index.html"
           grep -q 'href="/foo/guide"' "$DIR/index.html"
-          grep -q 'href="https://github.com/kurajs/pages#readme"' "$DIR/index.html"                    # ../README.md
-          grep -q 'href="https://github.com/kurajs/pages/blob/HEAD/config/app.toml"' "$DIR/index.html" # ../subpath -> blob
+          grep -q "href=\"https://github.com/kurajs/pages/blob/${GITHUB_SHA}/README.md\"" "$DIR/index.html" # ../README.md -> exact-sha blob (native)
+          grep -q 'href="../config/app.toml"' "$DIR/index.html" # untracked file: never guessed, stays authored
           echo "ok: fixture rendered, base_path=/foo applied, repo-relative links rewritten"
 
       # Re-build with a root base_path (the custom-domain / owner-page case) and assert root prefixes.
