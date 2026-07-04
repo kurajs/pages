@@ -2,4 +2,4 @@
 
 Welcome. See [the guide](guide.md) and [nested](sub/nested.md).
 
-Repo files: [readme](../README.md) and [config](../config/app.toml).
+Repo files: [readme](../README.md) and [config](../config/app.toml) and [cfg](../kura.toml).

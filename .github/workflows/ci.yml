@@ -49,8 +49,9 @@ jobs:
           test -n "$(find "$DIR" -path '*/nested/index.html')" # subfolder doc rendered
           grep -q 'href="/foo/_june/' "$DIR/index.html"
           grep -q 'href="/foo/guide"' "$DIR/index.html"
-          grep -q "href=\"https://github.com/kurajs/pages/blob/${GITHUB_SHA}/README.md\"" "$DIR/index.html" # ../README.md -> exact-sha blob (native)
-          grep -q 'href="../config/app.toml"' "$DIR/index.html" # untracked file: never guessed, stays authored
+          grep -q "href=\"https://github.com/kurajs/pages/blob/${GITHUB_SHA}/test/fixture/kura.toml\"" "$DIR/index.html" # ../kura.toml -> exact-sha blob from the fixture's REAL repo location
+          grep -q 'href="../README.md"' "$DIR/index.html"        # test/fixture/README.md does not exist: never guessed
+          grep -q 'href="../config/app.toml"' "$DIR/index.html"  # ditto — the retired sed used to blind-rewrite these
           echo "ok: fixture rendered, base_path=/foo applied, repo-relative links rewritten"
 
       # Re-build with a root base_path (the custom-domain / owner-page case) and assert root prefixes.
