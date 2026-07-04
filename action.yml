@@ -27,10 +27,10 @@ inputs:
     default: "true"
   cli-version:
     description: "Version range for @kurajs/cli."
-    default: ">=0.0.26 <0.1.0"
+    default: ">=0.0.27 <0.1.0"
   docs-version:
     description: "Version range for @kurajs/docs."
-    default: ">=0.0.45 <0.1.0"
+    default: ">=0.0.49 <0.1.0"
   bun-version:
     description: "Bun version."
     default: "1.3.14"
@@ -54,6 +54,11 @@ runs:
       env:
         REPO: ${{ github.repository }}
         GH_TOKEN: ${{ github.token }}
+        # Native link resolution (kura >=0.0.27): the build dir holds a COPY of docs/, so point the
+        # CLI at the real checkout and declare where the copied tree lives in the repo. GITHUB_SHA
+        # (automatic) becomes the blob ref, GITHUB_REPOSITORY the repo URL.
+        KURA_REPO_ROOT: ${{ github.workspace }}
+        KURA_SOURCE_MAP: '{"content/docs":"${{ inputs.docs }}"}'
         BASE_PATH_INPUT: ${{ inputs.base-path }}
         HOMEPAGE: ${{ inputs.homepage }}
         EMBED: ${{ inputs.embed }}
